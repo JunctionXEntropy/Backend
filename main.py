@@ -76,9 +76,9 @@ def run_agent_1(query: str):
     to convert the user's query into a structured JSON object.
     """
 
-    print(f"\n\n\n================ NEW REQUEST ================")
-    print(f"--- AGENT 1: INPUT ---")
-    print(f"Query: {query}")
+    #print(f"\n\n\n================ NEW REQUEST ================")
+    #print(f"--- AGENT 1: INPUT ---")
+    #print(f"Query: {query}")
 
     # Check for keywords in a case-insensitive manner
     keywords = ['dataset', 'data', 'schema']
@@ -148,8 +148,8 @@ JSON Output:
 
         memory.save_context({"input": query}, {"output": json.dumps(response)})
 
-        print(f"--- AGENT 1: OUTPUT ---")
-        print(response)
+        #print(f"--- AGENT 1: OUTPUT ---")
+        #print(response)
 
         return response
     except Exception as e:
@@ -164,8 +164,8 @@ def run_agent_2(structured_query: dict, schema: dict) -> dict:
     Returns an action plan ('BLOCK' or 'PROCEED') and a transparency log.
     """
 
-    print(f"\n--- AGENT 2: INPUT ---")
-    print(structured_query)
+    #print(f"\n--- AGENT 2: INPUT ---")
+    #print(structured_query)
 
     original_query = structured_query.get('original_query', '').lower()
 
@@ -180,7 +180,7 @@ def run_agent_2(structured_query: dict, schema: dict) -> dict:
                         'action_plan': 'BLOCK',
                         'transparency_log': f"Query blocked because it mentions a keyword related to the sensitive PII field: '{col_name}'."
                     }
-                    print(f"--- AGENT 2: OUTPUT ---\n{decision}\n")
+                    #print(f"--- AGENT 2: OUTPUT ---\n{decision}\n")
                     return decision
 
     # If no PII keywords were found, the query is compliant
@@ -188,7 +188,7 @@ def run_agent_2(structured_query: dict, schema: dict) -> dict:
         'action_plan': 'PROCEED',
         'transparency_log': 'Query is compliant with privacy policy. No sensitive keywords found.'
     }
-    print(f"--- AGENT 2: OUTPUT ---\n{decision}\n")
+    #print(f"--- AGENT 2: OUTPUT ---\n{decision}\n")
     return decision
 
 def run_agent_3(action_plan: dict, structured_query: dict, dataframe: pd.DataFrame) -> dict:
@@ -198,13 +198,13 @@ def run_agent_3(action_plan: dict, structured_query: dict, dataframe: pd.DataFra
     Executes a query against the dataframe if the compliance check passed.
     """
 
-    print(f"\n--- AGENT 3: INPUT ---")
-    print(f"Action Plan: {action_plan}")
+    #print(f"\n--- AGENT 3: INPUT ---")
+    #print(f"Action Plan: {action_plan}")
 
     # Step 1: Check the action plan from the compliance agent
     if action_plan.get('action_plan') == 'BLOCK':
         result = {'status': 'blocked', 'data_payload': None}
-        print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+        #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
         return result
     
     # Step 2: Proceed only if the action plan is 'PROCEED'
@@ -221,7 +221,7 @@ def run_agent_3(action_plan: dict, structured_query: dict, dataframe: pd.DataFra
                 # Convert key to lowercase for check
                 if column_key.lower() not in filtered_df.columns:
                     result = {'status': 'error', 'data_payload': f"Invalid filter column provided: '{column_key}'"}
-                    print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+                    #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
                     return result   
                 
             # Apply filters to the dataframe
@@ -239,7 +239,7 @@ def run_agent_3(action_plan: dict, structured_query: dict, dataframe: pd.DataFra
                 if 'count' in requested_field_str:
                     count = len(filtered_df)
                     result = {'status': 'success', 'data_payload': {'patient_count': count}}
-                    print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+                    #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
                     return result
 
                 # Handle AVERAGE/MEAN aggregation
@@ -262,20 +262,20 @@ def run_agent_3(action_plan: dict, structured_query: dict, dataframe: pd.DataFra
                                 average_value = filtered_df[target_column].mean()
                             else:
                                 result = {'status': 'error', 'data_payload': f"Column '{target_column}' is not numeric and cannot be averaged."}
-                                print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+                                #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
                                 return result
                         
                         payload_key = f"average_{target_column}"
                         result = {'status': 'success', 'data_payload': {payload_key: round(average_value, 2)}}
-                        print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+                        #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
                         return result
                     else:
                         result = {'status': 'error', 'data_payload': f"Could not determine a valid numeric column to average from request: '{requested_field_str}'"}
-                        print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+                        #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
                         return result
                 else:
                     result = {'status': 'error', 'data_payload': f"Unsupported aggregation type in request: '{requested_field_str}'"}
-                    print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+                    #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
                     return result
 
             elif intent == 'TABULAR_DATA':
@@ -287,24 +287,24 @@ def run_agent_3(action_plan: dict, structured_query: dict, dataframe: pd.DataFra
                 for field in requested_fields_lower:
                     if field not in filtered_df.columns:
                         result = {'status': 'error', 'data_payload': f"Invalid field requested for display: '{field}'"}
-                        print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+                        #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
                         return result
 
                 table_df = filtered_df[requested_fields_lower]
                 table_data = table_df.to_dict(orient='split')
 
                 result = {'status': 'success', 'data_payload': table_data}
-                print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+                #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
                 return result
         
         except Exception as e:
             print(f"Error during data retrieval in Agent 3: {e}")
             result = {'status': 'error', 'data_payload': 'An error occurred while processing the data.'}
-            print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+            #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
             return result   
         
     result = {'status': 'error', 'data_payload': f"Unknown action plan: {action_plan.get('action_plan')}"}
-    print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
+    #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
     return result   
 
 def run_agent_4(data_payload: dict, transparency_log: str, original_query: str) -> dict:
@@ -315,9 +315,9 @@ def run_agent_4(data_payload: dict, transparency_log: str, original_query: str) 
     including tabular data if present.
     """
     try:
-        print(f"\n--- AGENT 4: INPUT ---")
-        print(f"Original Query: {original_query}")
-        print(f"Data Payload: {data_payload}")
+        #print(f"\n--- AGENT 4: INPUT ---")
+        #print(f"Original Query: {original_query}")
+        #print(f"Data Payload: {data_payload}")
 
         # Format the data_payload into a simple string context for the LLM
         data_context = json.dumps(data_payload)
@@ -351,7 +351,7 @@ Do not make up values that are not present or implied by the data.
             "table_data": data_payload if is_tabular else None,
             "transparency_notice": transparency_log
         }
-        print(f"--- AGENT 4: OUTPUT ---\n{final_response}\n")
+        #print(f"--- AGENT 4: OUTPUT ---\n{final_response}\n")
         return final_response
 
     except Exception as e:
@@ -362,7 +362,7 @@ Do not make up values that are not present or implied by the data.
             "table_data": None,
             "transparency_notice": "An internal error occurred."
         }
-        print(f"--- AGENT 4: OUTPUT ---\n{final_response}\n")
+        #print(f"--- AGENT 4: OUTPUT ---\n{final_response}\n")
         return final_response
 
 # Define a POST endpoint at /api/query
