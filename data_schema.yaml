@@ -1,52 +1,60 @@
 dataset_path: "oulu_hospital_patients.csv"
-columns:
-  Patient_ID:
-    tags: [pii, direct_identifier]
-  Name:
-    tags: [pii, direct_identifier, personal_name]
-  Phone_Number:
-    tags: [pii, direct_identifier]
-  Address:
-    tags: [pii, direct_identifier]
-  Age:
-    tags: [quasi_identifier, numeric]
-  Gender:
-    tags: [quasi_identifier, categorical]
-  City:
-    tags: [categorical]
-  Blood_Type:
-    tags: [sensitive_health_data, categorical]
-  Condition:
-    tags: [sensitive_health_data, categorical]
-  Doctor_Name:
-    tags: [pii, quasi_identifier, personal_name]
-  Admission_Date:
-    tags: [datetime]
-  Recovery_Days:
-    tags: [numeric]
-
 dataset_metadata:
   name: "Oulu Hospital Patient Records"
   description: "Anonymized patient records from Oulu Hospital, including diagnosis, admission date, and blood type."
   source: "JunctionX 2025 Challenge"
 
 columns:
-  patient_id:
+  Patient_ID:
     data_type: string
     description: "A unique identifier for each patient."
-    is_pii: false
-  first_name:
-    data_type: string
-    description: "The patient's first name."
     is_pii: true
-    keywords: ["first name", "given name", "name"]
-  last_name:
+    keywords: [] # No keywords to avoid blocking general queries like 'how many patients'
+  Name:
     data_type: string
-    description: "The patient's last name."
+    description: "The patient's full name."
     is_pii: true
-    keywords: ["last name", "surname", "family name"]
-  phone_number:
+    keywords: ["name", "patient name"]
+  Phone_Number:
     data_type: string
     description: "The patient's contact phone number."
     is_pii: true
     keywords: ["phone number", "phone", "contact number"]
+  Address:
+    data_type: string
+    description: "The patient's street address."
+    is_pii: true
+    keywords: ["address", "street"]
+  Age:
+    data_type: integer
+    description: "The patient's age."
+    is_pii: false
+  Gender:
+    data_type: string
+    description: "The patient's gender (e.g., Female, Male)."
+    is_pii: false
+  City:
+    data_type: string
+    description: "The city where the patient resides (e.g., Oulu, Kempele)."
+    is_pii: false
+  Blood_Type:
+    data_type: string
+    description: "The patient's blood type."
+    is_pii: false
+  Condition:
+    data_type: string
+    description: "The patient's diagnosed medical condition."
+    is_pii: false
+  Doctor_Name:
+    data_type: string
+    description: "The name of the attending doctor."
+    is_pii: true
+    keywords: ["doctor", "doctor's name"]
+  Admission_Date:
+    data_type: string
+    description: "The date the patient was admitted."
+    is_pii: false
+  Recovery_Days:
+    data_type: integer
+    description: "The number of days for recovery."
+    is_pii: false
