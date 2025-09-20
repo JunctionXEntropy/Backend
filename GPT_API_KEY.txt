@@ -1,0 +1,5 @@
+Name:
+LLM_challenge
+
+Secret Key:
+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

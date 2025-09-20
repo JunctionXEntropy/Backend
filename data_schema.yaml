@@ -1,0 +1,52 @@
+dataset_path: "oulu_hospital_patients.csv"
+columns:
+  Patient_ID:
+    tags: [pii, direct_identifier]
+  Name:
+    tags: [pii, direct_identifier, personal_name]
+  Phone_Number:
+    tags: [pii, direct_identifier]
+  Address:
+    tags: [pii, direct_identifier]
+  Age:
+    tags: [quasi_identifier, numeric]
+  Gender:
+    tags: [quasi_identifier, categorical]
+  City:
+    tags: [categorical]
+  Blood_Type:
+    tags: [sensitive_health_data, categorical]
+  Condition:
+    tags: [sensitive_health_data, categorical]
+  Doctor_Name:
+    tags: [pii, quasi_identifier, personal_name]
+  Admission_Date:
+    tags: [datetime]
+  Recovery_Days:
+    tags: [numeric]
+
+dataset_metadata:
+  name: "Oulu Hospital Patient Records"
+  description: "Anonymized patient records from Oulu Hospital, including diagnosis, admission date, and blood type."
+  source: "JunctionX 2025 Challenge"
+
+columns:
+  patient_id:
+    data_type: string
+    description: "A unique identifier for each patient."
+    is_pii: false
+  first_name:
+    data_type: string
+    description: "The patient's first name."
+    is_pii: true
+    keywords: ["first name", "given name", "name"]
+  last_name:
+    data_type: string
+    description: "The patient's last name."
+    is_pii: true
+    keywords: ["last name", "surname", "family name"]
+  phone_number:
+    data_type: string
+    description: "The patient's contact phone number."
+    is_pii: true
+    keywords: ["phone number", "phone", "contact number"]

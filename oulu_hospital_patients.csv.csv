@@ -1,0 +1,21 @@
+Patient_ID,Name,Phone_Number,Address,Age,Gender,City,Blood_Type,Condition,Doctor_Name,Admission_Date,Recovery_Days
+FIN-123456-A,Anna Korhonen,+358 40 1234567,"Kirkkokatu 1, Oulu",34,Female,Oulu,A+,Asthma,Dr. Eemil Virtanen,11/15/2024,12
+FIN-654321-B,Matti Nieminen,+358 50 9876543,"Kauppurienkatu 5, Oulu",52,Male,Oulu,O-,Hypertension,Dr. Sofia Laakso,10/22/2024,7
+FIN-112233-C,Liisa Heikkinen,+358 44 1122334,"Isokatu 8, Oulu",28,Female,Oulu,B+,Migraine,Dr. Leo Kallio,11/1/2024,5
+FIN-445566-D,Jari Aaltonen,+358 41 4455667,"Hallituskatu 12, Oulu",65,Male,Oulu,AB+,Diabetes,Dr. Sofia Laakso,9/18/2024,20
+FIN-778899-E,Sari Laine,+358 45 7788990,"Saaristonkatu 2, Oulu",45,Female,Oulu,A-,Asthma,Dr. Eemil Virtanen,11/10/2024,14
+FIN-101010-F,Pekka Jokinen,+358 50 1010101,"Asemakatu 15, Oulu",38,Male,Oulu,O+,Hypertension,Dr. Sofia Laakso,10/30/2024,6
+FIN-202020-G,Laura Kinnunen,+358 40 2020202,"Pakkahuoneenkatu 20, Oulu",72,Female,Oulu,B-,Diabetes,Dr. Sofia Laakso,8/5/2024,25
+FIN-303030-H,Timo Rantanen,+358 44 3030303,"Torikatu 25, Oulu",22,Male,Oulu,A+,Migraine,Dr. Leo Kallio,11/20/2024,3
+FIN-404040-I,Heidi Koskinen,+358 41 4040404,"Linnankatu 30, Oulu",58,Female,Oulu,O-,Asthma,Dr. Eemil Virtanen,11/12/2024,11
+FIN-505050-J,Sami Lehtonen,+358 45 5050505,"Uusikatu 35, Oulu",41,Male,Oulu,AB-,Hypertension,Dr. Sofia Laakso,9/1/2024,9
+FIN-121212-K,Katja Mäkinen,+358 40 1212121,"Rantakatu 4, Oulu",31,Female,Kempele,A+,Asthma,Dr. Eemil Virtanen,11/5/2024,15
+FIN-131313-L,Ville Hämäläinen,+358 50 1313131,"Zeppeliinintie 1, Oulu",48,Male,Kempele,O+,Diabetes,Dr. Sofia Laakso,10/15/2024,18
+FIN-141414-M,Nina Vainio,+358 44 1414141,"Myllytie 2, Oulu",29,Female,Kempele,B+,Migraine,Dr. Leo Kallio,11/19/2024,4
+FIN-151515-N,Antti Järvinen,+358 41 1515151,"Ketolanperäntie 5, Oulu",68,Male,Kempele,A-,Hypertension,Dr. Sofia Laakso,8/20/2024,10
+FIN-161616-O,Maria Savolainen,+358 45 1616161,"Kauppatie 10, Oulu",55,Female,Kempele,O-,Asthma,Dr. Eemil Virtanen,11/25/2024,13
+FIN-212121-P,Jukka Lahtinen,+358 40 2121212,"Merikoskenkatu 2, Oulu",53,Male,Oulu,A+,Hypertension,Dr. Sofia Laakso,10/1/2024,8
+FIN-222222-Q,Elina Turunen,+358 50 2222222,"Valtatie 58, Oulu",36,Female,Oulu,AB+,Diabetes,Dr. Sofia Laakso,9/10/2024,22
+FIN-232323-R,Mikko Leppänen,+358 44 2323232,"Koskitie 20, Oulu",42,Male,Oulu,B-,Migraine,Dr. Leo Kallio,11/8/2024,6
+FIN-242424-S,Sanna Pitkänen,+358 41 2424242,"Toivontie 1, Oulu",25,Female,Oulu,O+,Asthma,Dr. Eemil Virtanen,11/28/2024,10
+FIN-252525-T,Kari Mattila,+358 45 2525252,"Haukiputaantie 750, Oulu",61,Male,Oulu,A-,Hypertension,Dr. Sofia Laakso,7/15/2024,14
