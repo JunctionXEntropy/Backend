@@ -58,3 +58,4 @@ columns:
     data_type: integer
     description: "The number of days for recovery."
     is_pii: false
+    keywords: ["Recovery Days", "Recovery"]

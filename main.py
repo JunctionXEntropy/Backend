@@ -68,66 +68,59 @@ def sanitize_filters(filters: dict, valid_columns: list[str]) -> dict:
     return {k: v for k, v in filters.items() if k.lower() in valid_columns}
 
 
-def run_agent_1(query: str):
+def run_agent_1(query: str) -> dict | str:
     """
-    Acts as a Query Analysis Agent.
-
-    Checks for metadata keywords first. Otherwise, uses an LLM chain
-    to convert the user's query into a structured JSON object.
+    Acts as a Query Analysis Agent. Final Version.
+    Handles metadata, then uses a single, powerful LLM call to perform
+    semantic mapping and structure the user's query into a JSON object.
     """
-
     #print(f"\n\n\n================ NEW REQUEST ================")
     #print(f"--- AGENT 1: INPUT ---")
     #print(f"Query: {query}")
 
-    # Check for keywords in a case-insensitive manner
+    # Handles metadata queries directly
     keywords = ['dataset', 'data', 'schema']
     if any(keyword in query.lower() for keyword in keywords):
         metadata = SCHEMA.get('dataset_metadata', {})
         name = metadata.get('name', 'Unnamed Dataset')
         description = metadata.get('description', 'No description available.')
-        return f"{name}: {description}"
+        
+        response = f"{name}: {description}"
+        #print(f"--- AGENT 1: OUTPUT (Metadata) ---")
+        #print(response)
+        return response
 
-    # For all other queries, use the LLM chain to get a structured response
     try:
-        # Get valid column names from the schema to guide the LLM
-        column_names = [col.lower() for col in SCHEMA.get('columns', {}).keys()]
-
+        # Create a detailed summary of the schema to provide as context to the LLM
+        schema_summary = "\n".join(
+            [f"- {col}: {props.get('description', 'No description')}" for col, props in SCHEMA.get('columns', {}).items()]
+        )
+        
         parser = JsonOutputParser(pydantic_object=StructuredQuery)
 
-        # PROMPT TEMPLATE
-        prompt_template_str = """You are an expert query analyzer for a hospital dataset. Your task is to convert a user's question into a structured JSON object.
+        # A single, powerful prompt that instructs the LLM to reason and then format
+        prompt_template_str = """You are an expert query analyzer. Your task is to convert a user's question into a structured JSON object based on the provided schema.
 
-The keys in the 'filters' dictionary MUST BE from the following lowercase list of valid column names: {column_names}
-Do not invent any other keys.
+Follow these steps:
+1.  Analyze the user's query to understand their intent.
+2.  Identify all entities and values in the query (e.g., 'asthma', 'oulu', 'age').
+3.  Map these entities to the most relevant column names from the schema summary.
+4.  IMPORTANT RULE: If the user asks for a general list of 'patients' or 'records' without specifying fields, you MUST only request a small, pre-approved set of safe columns: ['Age', 'Gender', 'City', 'Condition'].
+5.  Construct a final JSON object based on your analysis.
 
-Example 1:
-User Query: "list the blood types for female patients in oulu"
-JSON Output:
-{{
-  "intent": "TABULAR_DATA",
-  "requested_fields": ["blood_type"],
-  "filters": {{"gender": "Female", "city": "Oulu"}},
-  "original_query": "list the blood types for female patients in oulu"
-}}
+Schema Summary:
+{schema_summary}
 
-Example 2:
-User Query: "how many have asthma"
-JSON Output:
-{{
-  "intent": "AGGREGATION",
-  "requested_fields": ["patient_count"],
-  "filters": {{"condition": "Asthma"}},
-  "original_query": "how many patients have asthma"
-}}
-
-Now, analyze the following. Output ONLY the JSON object.
+The final JSON output MUST follow these formatting instructions:
+{format_instructions}
 
 Conversation History:
 {history}
 
-User Query: {input}
-JSON Output:
+User Query:
+{input}
+
+Final JSON Output:
 """
 
         prompt = PromptTemplate(
@@ -135,237 +128,181 @@ JSON Output:
             input_variables=["history", "input"],
             partial_variables={
                 "format_instructions": parser.get_format_instructions(),
-                "column_names": column_names
+                "schema_summary": schema_summary
             },
         )
 
         chain = prompt | llm | parser
         response = chain.invoke({"input": query, "history": memory.buffer_as_str})
 
-        # 🔹 Sanitize filters against schema right here
         valid_columns = [col.lower() for col in SCHEMA.get('columns', {}).keys()]
-        response["filters"] = sanitize_filters(response.get("filters", {}), valid_columns)
+        if "filters" in response and isinstance(response["filters"], dict):
+            response["filters"] = {k: v for k, v in response["filters"].items() if k.lower() in valid_columns}
 
         memory.save_context({"input": query}, {"output": json.dumps(response)})
-
+        
         #print(f"--- AGENT 1: OUTPUT ---")
         #print(response)
-
         return response
+    
     except Exception as e:
-        print(f"Error in Agent 1: Failed to parse LLM response. Error: {e}")
-        return {"error": "Failed to parse query", "details": "The language model returned an invalid format."}
-
+        print(f"Error in Agent 1: {e}")
+        response = {"error": "Failed to process query", "details": "The language model could not understand the request."}
+        #print(f"--- AGENT 1: OUTPUT (Error) ---")
+        #print(response)
+        return response
 def run_agent_2(structured_query: dict, schema: dict) -> dict:
     """
-    Acts as a Compliance Agent.
-
-    Scans the original user query for keywords associated with PII fields.
-    Returns an action plan ('BLOCK' or 'PROCEED') and a transparency log.
+    Acts as a Compliance Agent. Final Version.
+    Checks for PII in both the original query and the requested_fields list.
     """
-
     #print(f"\n--- AGENT 2: INPUT ---")
     #print(structured_query)
 
     original_query = structured_query.get('original_query', '').lower()
+    schema_columns = schema.get('columns', {})
 
-    # Iterate through each column defined in the schema
-    for col_name, col_props in schema.get('columns', {}).items():
-        # Check if the column is marked as PII
+    # CHECK 1: Scan the original query text for explicit PII keywords
+    for col_name, col_props in schema_columns.items():
         if col_props.get('is_pii', False):
-            # Check if any of the column's keywords are in the user query
             for keyword in col_props.get('keywords', []):
                 if keyword.lower() in original_query:
                     decision = {
                         'action_plan': 'BLOCK',
                         'transparency_log': f"Query blocked because it mentions a keyword related to the sensitive PII field: '{col_name}'."
                     }
-                    #print(f"--- AGENT 2: OUTPUT ---\n{decision}\n")
+                    #print(f"--- AGENT 2: OUTPUT ---")
+                    #print(decision)
                     return decision
 
-    # If no PII keywords were found, the query is compliant
+    # CHECK 2: Audit the fields requested by Agent 1's LLM
+    requested_fields = [field.lower() for field in structured_query.get('requested_fields', [])]
+    schema_columns_lower = {col.lower(): props for col, props in schema.get('columns', {}).items()}
+    
+    for field in requested_fields:
+        if schema_columns_lower.get(field, {}).get('is_pii', False):
+            decision = {
+                'action_plan': 'BLOCK',
+                'transparency_log': f"Query blocked because it explicitly requests the sensitive PII field: '{field}'."
+            }
+            #print(f"--- AGENT 2: OUTPUT ---")
+            #print(decision)
+            return decision
+    
+    # If both checks pass, the query is compliant
     decision = {
         'action_plan': 'PROCEED',
         'transparency_log': 'Query is compliant with privacy policy. No sensitive keywords found.'
     }
-    #print(f"--- AGENT 2: OUTPUT ---\n{decision}\n")
+    #print(f"--- AGENT 2: OUTPUT ---")
+    #print(decision)
     return decision
 
 def run_agent_3(action_plan: dict, structured_query: dict, dataframe: pd.DataFrame) -> dict:
     """
-    Acts as a Data Retrieval Agent.
-
+    Acts as a Data Retrieval Agent. Final Version.
     Executes a query against the dataframe if the compliance check passed.
     """
-
-    #print(f"\n--- AGENT 3: INPUT ---")
-    #print(f"Action Plan: {action_plan}")
-
-    # Step 1: Check the action plan from the compliance agent
     if action_plan.get('action_plan') == 'BLOCK':
-        result = {'status': 'blocked', 'data_payload': None}
-        #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-        return result
+        return {'status': 'blocked', 'data_payload': None}
     
-    # Step 2: Proceed only if the action plan is 'PROCEED'
     if action_plan.get('action_plan') in ['PROCEED', 'AGGREGATE']:
         try:
             filtered_df = dataframe.copy()
-            # Convert dataframe columns to lowercase for case-insensitive matching
             filtered_df.columns = [col.lower() for col in filtered_df.columns]
-
             filters = structured_query.get('filters', {})
 
-            # Validate that all filter keys are valid columns in the dataframe
             for column_key in filters.keys():
-                # Convert key to lowercase for check
                 if column_key.lower() not in filtered_df.columns:
-                    result = {'status': 'error', 'data_payload': f"Invalid filter column provided: '{column_key}'"}
-                    #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-                    return result   
-                
-            # Apply filters to the dataframe
+                    return {'status': 'error', 'data_payload': f"Invalid filter column provided: '{column_key}'"}
+            
             if filters:
                 for column, value in filters.items():
-                    # Apply each filter sequentially using standard boolean indexing
                     filtered_df = filtered_df[filtered_df[str(column).lower()].str.lower() == str(value).lower()]
 
-            # Step 3: Perform action based on intent
             intent = structured_query.get('intent')
             if intent == 'AGGREGATION':
-                requested_field_str = structured_query.get('requested_fields', ['count'])[0].lower()
+                original_query_lower = structured_query.get('original_query', '').lower()
 
-                # Handle COUNT aggregation
-                if 'count' in requested_field_str:
-                    count = len(filtered_df)
-                    result = {'status': 'success', 'data_payload': {'patient_count': count}}
-                    #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-                    return result
-
-                # Handle AVERAGE/MEAN aggregation
-                elif 'average' in requested_field_str or 'mean' in requested_field_str:
-                    # Find which numeric column is being requested from the schema
-                    numeric_columns = [col.lower() for col, props in SCHEMA.get('columns', {}).items() if props.get('data_type') == 'integer']
-                    
+                # --- START: CORRECTED AGGREGATION LOGIC ---
+                if 'average' in original_query_lower or 'mean' in original_query_lower:
                     target_column = None
-                    for col in numeric_columns:
-                        if col.replace('_', '') in requested_field_str.replace('_', ''):
-                            target_column = col
+                    # Find the target column by checking for the column name OR its keywords in the query
+                    for col_name, props in SCHEMA.get('columns', {}).items():
+                        if props.get('data_type') == 'integer':
+                            search_terms = [col_name.lower()] + [kw.lower() for kw in props.get('keywords', [])]
+                            for term in search_terms:
+                                if term.replace('_', ' ') in original_query_lower:
+                                    target_column = col_name.lower()
+                                    break
+                        if target_column:
                             break
                     
                     if target_column:
                         if filtered_df.empty:
-                            average_value = 0
+                            return {'status': 'success', 'data_payload': {'patient_count': 0}}
                         else:
-                            # Ensure the column is numeric before calculating mean
-                            if pd.api.types.is_numeric_dtype(filtered_df[target_column]):
-                                average_value = filtered_df[target_column].mean()
-                            else:
-                                result = {'status': 'error', 'data_payload': f"Column '{target_column}' is not numeric and cannot be averaged."}
-                                #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-                                return result
-                        
-                        payload_key = f"average_{target_column}"
-                        result = {'status': 'success', 'data_payload': {payload_key: round(average_value, 2)}}
-                        #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-                        return result
+                            average_value = filtered_df[target_column].mean()
+                            payload_key = f"average_{target_column}"
+                            return {'status': 'success', 'data_payload': {payload_key: round(average_value, 2)}}
                     else:
-                        result = {'status': 'error', 'data_payload': f"Could not determine a valid numeric column to average from request: '{requested_field_str}'"}
-                        #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-                        return result
-                else:
-                    result = {'status': 'error', 'data_payload': f"Unsupported aggregation type in request: '{requested_field_str}'"}
-                    #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-                    return result
+                        return {'status': 'error', 'data_payload': "Could not determine a valid numeric column to average from the query."}
+                # --- END: CORRECTED AGGREGATION LOGIC ---
+                
+                else: # Default to count if 'average' or 'mean' is not in the query
+                    count = len(filtered_df)
+                    return {'status': 'success', 'data_payload': {'patient_count': count}}
 
             elif intent == 'TABULAR_DATA':
-                requested_fields = structured_query.get('requested_fields', [])
-                # Ensure requested fields are lowercase to match dataframe columns
-                requested_fields_lower = [field.lower() for field in requested_fields]
-
-                # Validate that all requested fields are valid columns
-                for field in requested_fields_lower:
-                    if field not in filtered_df.columns:
-                        result = {'status': 'error', 'data_payload': f"Invalid field requested for display: '{field}'"}
-                        #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-                        return result
-
-                table_df = filtered_df[requested_fields_lower]
+                requested_fields = [f.lower() for f in structured_query.get('requested_fields', [])]
+                for field in requested_fields:
+                    if SCHEMA['columns'].get(field, {}).get('is_pii', False):
+                         return {'status': 'error', 'data_payload': f"Access to sensitive PII field is not allowed for tabular display: '{field}'"}
+                
+                table_df = filtered_df[requested_fields]
                 table_data = table_df.to_dict(orient='split')
-
-                result = {'status': 'success', 'data_payload': table_data}
-                #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-                return result
+                if 'index' in table_data:
+                    del table_data['index']
+                return {'status': 'success', 'data_payload': table_data}
         
         except Exception as e:
-            print(f"Error during data retrieval in Agent 3: {e}")
-            result = {'status': 'error', 'data_payload': 'An error occurred while processing the data.'}
-            #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-            return result   
-        
-    result = {'status': 'error', 'data_payload': f"Unknown action plan: {action_plan.get('action_plan')}"}
-    #print(f"--- AGENT 3: OUTPUT ---\n{result}\n")
-    return result   
+            return {'status': 'error', 'data_payload': f'An error occurred during data processing: {e}'}
+    
+    return {'status': 'error', 'data_payload': f"Unknown action plan: {action_plan.get('action_plan')}"}
+
+
 
 def run_agent_4(data_payload: dict, transparency_log: str, original_query: str) -> dict:
     """
-    Acts as a final Response Generation Agent.
-    
-    Generates a natural language response and formats the final output,
-    including tabular data if present.
+    Acts as a final Response Generation Agent. Final DEMO-READY version.
+    Generates a response using simple logic for reliability.
     """
-    try:
-        #print(f"\n--- AGENT 4: INPUT ---")
-        #print(f"Original Query: {original_query}")
-        #print(f"Data Payload: {data_payload}")
+    is_tabular = isinstance(data_payload, dict) and 'columns' in data_payload
+    answer = "Your query was processed successfully." # Default message
 
-        # Format the data_payload into a simple string context for the LLM
-        data_context = json.dumps(data_payload)
-
-        parser = StrOutputParser()
-
-        prompt_template_str = """You are a helpful hospital administration assistant. 
-Answer the user's question using ONLY the provided data_payload. 
-You may use simple logical reasoning on the data (for example: if the count is 0, 
-then averages, minimums, or maximums cannot be computed). 
-Do not make up values that are not present or implied by the data.
-        User's Question: {question}. Context: {context}. Your concise, natural-language answer:"""
+    if is_tabular:
+        num_rows = len(data_payload.get('data', []))
+        answer = f"I found {num_rows} records matching your query."
+    
+    elif isinstance(data_payload, dict):
+        if data_payload.get('patient_count') is not None:
+            count = data_payload['patient_count']
+            answer = f"The result of your query is: {count} patients found." if count > 0 else "No patients matched the criteria for your query."
         
-        prompt = PromptTemplate(
-            template=prompt_template_str,
-            input_variables=["question", "context"],
-        )
+        elif any(key.startswith('average_') for key in data_payload.keys()):
+            avg_key = next(key for key in data_payload if key.startswith('average_'))
+            avg_val = data_payload[avg_key]
+            subject = avg_key.replace('average_', '').replace('_', ' ')
+            answer = f"The average {subject} for the matching patients is {avg_val}."
 
-        chain = prompt | llm | parser
+    return {
+        "response_type": "composite" if is_tabular else "text",
+        "text_response": answer,
+        "table_data": data_payload if is_tabular else None,
+        "transparency_notice": transparency_log
+    } 
+    
 
-        answer = chain.invoke(
-            {"question": original_query, "context": data_context}
-        )
-
-        # Check if the payload is tabular data to include in the final response
-        is_tabular = isinstance(data_payload, dict) and 'columns' in data_payload
-
-        final_response = {
-            "response_type": "text",
-            "text_response": answer,
-            "table_data": data_payload if is_tabular else None,
-            "transparency_notice": transparency_log
-        }
-        #print(f"--- AGENT 4: OUTPUT ---\n{final_response}\n")
-        return final_response
-
-    except Exception as e:
-        print(f"Error in Agent 4: {e}")
-        final_response = {
-            "response_type": "error",
-            "text_response": "An error occurred while generating the final response.",
-            "table_data": None,
-            "transparency_notice": "An internal error occurred."
-        }
-        #print(f"--- AGENT 4: OUTPUT ---\n{final_response}\n")
-        return final_response
-
-# Define a POST endpoint at /api/query
 @app.post("/api/query")
 async def process_query(user_query: UserQuery):
     """
@@ -410,8 +347,8 @@ async def process_query(user_query: UserQuery):
             "transparency_notice": agent_2_response.get('transparency_log')
         }
 
-    # Step 3 & 4: If compliance check passed, run Data Retrieval and Response Generation
-    if agent_2_response.get('action_plan') == 'PROCEED':
+    # --- THIS IS THE CORRECTED LINE ---
+    if agent_2_response.get('action_plan') in ['PROCEED', 'AGGREGATE']:
         if PATIENT_DATA is None:
             return {"response_type": "error", "text_response": "I cannot answer this question right now due to a server configuration issue.", "table_data": None, "transparency_notice": "Server is misconfigured: Patient data is not available."}
         
